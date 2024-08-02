@@ -1,9 +1,6 @@
 ﻿using Datio.GenerowanieProtokolowJakoZalacznik;
 using Soneta.Tools;
-using System.Linq;
-using System;
 using System.Collections;
-using System.IO;
 using Soneta.Business;
 using Soneta.Business.UI;
 using Soneta.Core.ServiceInvoker;
@@ -13,12 +10,7 @@ using Soneta.Handel;
 using Soneta.Types;
 using Soneta.Support.Support;
 using Soneta.Support;
-using System.Drawing;
-using Soneta.CRM;
-using Soneta.Zadania;
-using System.Diagnostics;
-using System.Text;
-using static Soneta.Core.KSeF.API.Models;
+using System.Reflection;
 
 [assembly: Worker(typeof(GenerujZalacznik), typeof(DokHandlowe))]
 
@@ -62,11 +54,19 @@ namespace Datio.GenerowanieProtokolowJakoZalacznik
                             GenerujFaktureSprzedazy(item);
 
                         var relacjaUmowa = item.NadrzedneRelacje.FirstOrDefault();
-                        var pozycjeDokHandlowegoLimitHosts = relacjaUmowa?.Pozycje.FirstOrDefault()?.Nadrzedna?.UmowaLimit?.Hosts.ToList();
-                        if (pozycjeDokHandlowegoLimitHosts is null)
+                        if (ParametryEksportu.EksportujProtokoly)
                         {
-                            itemzbledem++;
-                            Logi.Add($"{Date.Now}: {item.NumerPelnyZapisany} ({item.Kontrahent.Nazwa}): Brak ustalonego limitu do pozycji na umowie");
+                            var pozycjeDokHandlowegoLimitHosts = relacjaUmowa?.Pozycje.FirstOrDefault()?.Nadrzedna?.UmowaLimit?.Hosts.ToList();
+                            if (pozycjeDokHandlowegoLimitHosts is null)
+                            {
+                                itemzbledem++;
+                                Logi.Add($"{Date.Now}: {item.NumerPelnyZapisany} ({item.Kontrahent.Nazwa}): Brak ustalonego limitu do pozycji na umowie");
+                            }
+                            else
+                            {
+                                i++;
+                                Logi.Add($"{Date.Now}: {item.NumerPelnyZapisany} ({item.Kontrahent.Nazwa}): Plik zapisany poprawnie, weryfikacja poprawna");
+                            }
                         }
                         else
                         {
@@ -190,14 +190,31 @@ namespace Datio.GenerowanieProtokolowJakoZalacznik
 
             Cx.Set(Dh);
 
-            // Cx.Set(parametry);
-
             var bm = BusinessModule.GetInstance(Cx.Session);
+            string templateRaport = "";
 
+            if (Dh.Pozycje.Any(x=>x.Cena.Symbol == "EUR"))
+            {
+                Assembly assembly = Assembly.Load("Soneta.Handel.Reports");
+                Type classType = assembly.GetType("Soneta.Handel.Reports.SprzedazSnippet+MyParametryWydruku");
+                object classInstance = Activator.CreateInstance(classType, new object[] { Cx });
+                PropertyInfo duplikatProperty = classType.GetProperty("Duplikat");
+                duplikatProperty.SetValue(classInstance, false);
+                PropertyInfo rabatProperty = classType.GetProperty("Rabat");
+                rabatProperty.SetValue(classInstance, false);
+                PropertyInfo wgCenProperty = classType.GetProperty("WgCen");
+                wgCenProperty.SetValue(classInstance, false);
+                Cx.Set(classInstance);
+                templateRaport = "XtraReports/Wzorce użytkownika/kurs.repx";
+            }
+            else 
+            {
+                templateRaport = "XtraReports/Wzorce użytkownika/sprzedaz(dodatek).repx";
+            }
             var report = new ReportResult
             {
 
-                TemplateFileName = "XtraReports/Wzorce użytkownika/sprzedaz(dodatek).repx",
+                TemplateFileName = templateRaport,
                 Format = ReportResultFormat.PDF,
                 DataType = typeof(DokumentHandlowy),
                 //TemplateType = typeof(XtraReportSerialization.Sprzedaz),
@@ -208,7 +225,6 @@ namespace Datio.GenerowanieProtokolowJakoZalacznik
             };
 
             GenerateFile(rs.GenerateReport(report), "C:\\Protokoły\\" + nameW);
-
 
             //stworzenie obiektu klasy Attachment 
             Attachment zalW = new Attachment(Dh, AttachmentType.Attachments);
