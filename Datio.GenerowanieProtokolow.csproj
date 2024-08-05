@@ -3,10 +3,6 @@
   <PropertyGroup>
 	  <TargetFramework>$(SonetaTargetFramework)</TargetFramework>
 	  <ImplicitUsings>enable</ImplicitUsings>
-	  <FileVersion>1.2.6.6</FileVersion>
-	  <AssemblyVersion>1.2.6.6</AssemblyVersion>
-	  <PackageVersion>1.2.6.6</PackageVersion>
-	  <Version>1.2.6.6</Version>
   </PropertyGroup>
 
   <ItemGroup>

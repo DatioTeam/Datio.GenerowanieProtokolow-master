@@ -12,6 +12,8 @@ using Soneta.Support.Support;
 using Soneta.Support;
 using System.Reflection;
 
+[assembly: AssemblyFileVersion("1.2.6.6")]
+[assembly: AssemblyVersion("1.2.6.6")]
 [assembly: Worker(typeof(GenerujZalacznik), typeof(DokHandlowe))]
 
 namespace Datio.GenerowanieProtokolowJakoZalacznik
